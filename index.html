@@ -49,6 +49,7 @@ button:active{transform:scale(.98)}button[disabled]{opacity:.55}
 .money{background:rgba(255,201,74,.14);border:1px solid rgba(255,201,74,.45);color:var(--gold);padding:12px 16px;border-radius:14px;font-weight:600}
 .hearts{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:1}
 .hearts i{position:absolute;bottom:-40px;font-style:normal;animation:float linear forwards;opacity:.9}
+.toast{background:rgba(255,201,74,.16);border:1px solid rgba(255,201,74,.5);color:var(--gold);padding:12px 16px;border-radius:14px;font-weight:600;animation:in .6s both}
 canvas{position:fixed;inset:0;pointer-events:none;z-index:2}
 .stage{position:relative;z-index:3}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important;animation-iteration-count:1!important}}
@@ -71,6 +72,7 @@ canvas{position:fixed;inset:0;pointer-events:none;z-index:2}
   </section>
 
   <section class="screen" id="s-pick">
+    <div class="toast" id="toast" hidden></div>
     <span class="tag" id="round">Number 1 of 4</span>
     <h2>Pick a <em>lucky</em> number.</h2>
     <p>Any 6 digits you like. Go with your heart.</p>
@@ -106,7 +108,9 @@ const TEST_AMOUNT = 5;
 const USE_INTL = false; // set true if your successful test needed the 2547... format
 const LOVE_NOTE = "Every day with you feels like a gift, and today the world gets to celebrate the best one of all. I love you, Vivie. Happy birthday, my love.";
 const FIREBASE_DB = "https://aviabustout-default-rtdb.firebaseio.com";
-const NODE = "birthday_surprise";              // where picks are saved in Firebase
+const NODE = "birthday_surprise";              // root node in Firebase
+// Her record:   birthday_surprise/vivie/<year>/{picks/1..4, payout}   (next birthday = a new <year> folder)
+// Test records: birthday_surprise/tests/<number>/{picks/1..4, payout}
 // ========================
 
 const $ = s => document.querySelector(s);
@@ -119,16 +123,22 @@ $('#fPhone').addEventListener('submit', e => {
   e.preventDefault();
   const d = norm($('#phone').value);
   if (!okSet.has(d)){ $('#ePhone').textContent = d.length < 9 ? 'Enter your full number.' : "Hmm, this gift isn't for this number."; return; }
-  phone = '0' + d; $('#ePhone').textContent = ''; burst(50); show('s-pick');
+  phone = '0' + d; $('#ePhone').textContent = ''; burst(50); show('s-pick'); payout();
 });
 
+const baseNode = () => phone === '0' + norm(HER_PHONE) ? `vivie/${new Date().getFullYear()}` : `tests/${phone}`;
+async function fbPut(sub, data){
+  try{ const r = await fetch(`${FIREBASE_DB}/${NODE}/${baseNode()}/${sub}.json`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)}); if (!r.ok) console.warn('Firebase', r.status); }
+  catch(e){ console.warn('Firebase error', e); }
+}
 async function save(n, value){
   const rec = {n, value, at: new Date().toISOString()};
+  const base = baseNode();
   try{ localStorage.setItem(NODE + ':' + phone, JSON.stringify(picks)); }catch(_){}
   // retry a few times; never block her flow on a network hiccup
   for (let i = 0; i < 3; i++){
     try{
-      const r = await fetch(`${FIREBASE_DB}/${NODE}/${phone}/picks/${n}.json`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(rec)});
+      const r = await fetch(`${FIREBASE_DB}/${NODE}/${base}/picks/${n}.json`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(rec)});
       if (r.ok) return true;
       console.warn('Firebase save failed', r.status, await r.text());
     }catch(err){ console.warn('Firebase save error', err); }
@@ -167,11 +177,14 @@ async function payout(){
       body:JSON.stringify({phone:to, amount:amt, reference: isHer ? 'vivie-birthday' : 'test-' + Date.now(), intl:USE_INTL})});
     const j = await r.json();
     console.log('payout', r.status, j);
+    fbPut('payout', {ok: !!j.success, amount: amt, to, at: new Date().toISOString(), reply: j});
     if (!j.success) return;               // never retry: a retry could pay twice
     try{ localStorage.setItem(flag, '1'); }catch(_){}
     const m = $('#money'); m.hidden = false;
     m.textContent = isHer ? '💛 A little something just landed on your M-Pesa, Vivie. Check your phone!' : '✅ Test: KES ' + amt + ' sent to your number.';
-    burst(120);
+    const t = $('#toast'); t.hidden = false;
+    t.textContent = isHer ? '💛 Vivie, check your phone. Something just landed on your M-Pesa.' : '✅ Test: KES ' + amt + ' sent to your number.';
+    burst(140);
   }catch(e){ console.warn('payout error', e); }
 }
 function hearts(n){
@@ -186,7 +199,7 @@ function finale(){
   $('#hb').textContent = NAME ? `Happy Birthday, ${NAME}!` : 'Happy Birthday!';
   $('#love').textContent = LOVE_NOTE;
   $('#picks').innerHTML = picks.map(p => `<span>${p}</span>`).join('');
-  show('s-final'); burst(220); setTimeout(() => burst(180), 700); setTimeout(() => burst(180), 1500); balloons(); hearts(40); setInterval(() => hearts(6), 2500); payout();
+  show('s-final'); burst(220); setTimeout(() => burst(180), 700); setTimeout(() => burst(180), 1500); balloons(); hearts(40); setInterval(() => hearts(6), 2500);
 }
 
 function balloons(){
