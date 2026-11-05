@@ -95,7 +95,7 @@ canvas{position:fixed;inset:0;pointer-events:none;z-index:2}
     </div>
     <div id="gotBox" class="screen" style="animation:none">
       <div class="gift">💛</div>
-      <div class="big" id="gotAmt">KES 650</div>
+      <div class="big" id="gotAmt">KES 350</div>
       <h2>is in your <em style="white-space:nowrap">M-Pesa</em> now</h2>
       <p>Check your phone, Vivie. This is only the beginning.</p>
       <div class="bar"><i id="barFill"></i></div>
@@ -140,7 +140,7 @@ const NAME = "Vivie";
 const API_BASE = "https://payhero-callback-setup.onrender.com";    // your Render URL, e.g. "https://your-app.onrender.com". Blank = no money is sent (test mode)
 const API_KEY = "VhofCA0BxzLOO5WpvlaJIlP8LdoXV39IcxBQSqZgXS0";     // the BACKEND_API_KEY from Render: the same key you type in the test page
 const HER_PHONE = "0768920331";
-const GIFT_AMOUNT = 650;
+const GIFT_AMOUNT = 350;
 const TEST_PHONE = "0718762418"; // your number: sends KES 5 as a test (set TEST_AMOUNT = 0 to turn off)
 const TEST_AMOUNT = 20; // HashBack minimum withdrawal is KES 20
 const USE_INTL = false; // set true if your successful test needed the 2547... format
@@ -200,7 +200,8 @@ $('#fPick').addEventListener('submit', async e => {
   $('#ePick').textContent = '';
   const b = $('#bPick'); b.disabled = true; b.textContent = 'Sending…';
   picks.push(v);
-  await save(picks.length, v);
+  const saved = await save(picks.length, v);
+  if (!saved && phone === '0' + norm(TEST_PHONE)){ const t = $('#toast'); t.hidden = false; t.style.color = '#ffb3a6'; t.textContent = 'Firebase did not save this number. Open the browser console (F12) for the reason. Usually the database rules block it.'; }
   b.disabled = false; b.textContent = 'Send';
   document.querySelectorAll('#dots i').forEach((d,i) => d.classList.toggle('on', i < picks.length));
   $('#pick').value = '';
