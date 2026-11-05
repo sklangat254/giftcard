@@ -253,7 +253,7 @@ function hearts(n){
 }
 async function countdown(msg, sub){
   $('#cMsg').textContent = msg; $('#cSub').textContent = sub; show('s-count');
-  for (let n = 20; n >= 1; n--){ $('#cNum').textContent = n; if (n <= 5) burst(8); await sleep(1000); }
+  for (let n = 50; n >= 1; n--){ $('#cNum').textContent = n; if (n <= 5) burst(8); await sleep(1000); }
   burst(40);
 }
 function finale(){
