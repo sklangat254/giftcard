@@ -49,6 +49,22 @@ button:active{transform:scale(.98)}button[disabled]{opacity:.55}
 .money{background:rgba(255,201,74,.14);border:1px solid rgba(255,201,74,.45);color:var(--gold);padding:12px 16px;border-radius:14px;font-weight:600}
 .hearts{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:1}
 .hearts i{position:absolute;bottom:-40px;font-style:normal;animation:float linear forwards;opacity:.9}
+#bPick{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.45);letter-spacing:.02em;
+ background:linear-gradient(100deg,#4285F4,#EA4335,#FBBC05,#34A853,#4285F4,#EA4335);background-size:300% 100%;
+ animation:gmix 5s linear infinite;box-shadow:0 12px 30px -8px rgba(66,133,244,.55),0 0 0 2px rgba(255,255,255,.25) inset}
+@keyframes gmix{to{background-position:300% 0}}
+#bPick:active{transform:scale(.97)}
+#s-load,#s-count{align-items:center}
+#s-load>.screen{width:100%}
+.spinner{width:58px;height:58px;border-radius:50%;border:5px solid rgba(255,255,255,.18);border-top-color:var(--gold);animation:spin .8s linear infinite}
+@keyframes spin{to{rotate:360deg}}
+.bar{width:70%;height:6px;border-radius:9px;background:rgba(255,255,255,.15);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--pink));border-radius:9px}
+.count{font:700 clamp(110px,38vw,180px)/1 'Fraunces',serif;background:linear-gradient(100deg,var(--gold),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent;animation:pop 1s ease-in-out infinite}
+@keyframes pop{50%{scale:1.08}}
+.lab{font:600 15px 'Figtree',sans-serif;color:var(--gold)}
+#pick{font-size:26px}
+#pick::placeholder{font:600 20px 'Figtree',sans-serif;letter-spacing:.02em;color:rgba(255,255,255,.62)}
 .toast{background:rgba(255,201,74,.16);border:1px solid rgba(255,201,74,.5);color:var(--gold);padding:12px 16px;border-radius:14px;font-weight:600;animation:in .6s both}
 canvas{position:fixed;inset:0;pointer-events:none;z-index:2}
 .stage{position:relative;z-index:3}
@@ -71,14 +87,36 @@ canvas{position:fixed;inset:0;pointer-events:none;z-index:2}
     </form>
   </section>
 
+  <section class="screen" id="s-load">
+    <div id="loadBox" class="screen on" style="animation:none">
+      <div class="spinner"></div>
+      <h2>Sending your gift…</h2>
+      <p>Just a moment, something lovely is on its way.</p>
+    </div>
+    <div id="gotBox" class="screen" style="animation:none">
+      <div class="gift">💛</div>
+      <div class="big" id="gotAmt">KES 650</div>
+      <h2>is in your <em style="white-space:nowrap">M-Pesa</em> now</h2>
+      <p>Check your phone, Vivie. This is only the beginning.</p>
+      <div class="bar"><i id="barFill"></i></div>
+    </div>
+  </section>
+
+  <section class="screen" id="s-count">
+    <span class="tag" id="cMsg">Something special is coming…</span>
+    <div class="count" id="cNum">20</div>
+    <p id="cSub">Hold on, no peeking.</p>
+  </section>
+
   <section class="screen" id="s-pick">
     <div class="toast" id="toast" hidden></div>
     <span class="tag" id="round">Number 1 of 4</span>
     <h2>Pick a <em>lucky</em> number.</h2>
     <p>Any 6 digits you like. Go with your heart.</p>
+    <label class="lab" for="pick">Type your 6 digits here 👇</label>
     <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
     <form class="box" id="fPick" novalidate>
-      <input id="pick" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="······">
+      <input id="pick" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="Type here">
       <div class="err" id="ePick" role="alert"></div>
       <button type="submit" id="bPick">Send</button>
     </form>
@@ -119,11 +157,19 @@ const okSet = new Set(ALLOWED.map(norm));
 let phone = '', picks = [];
 const show = id => { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); const i = $('#'+id+' input'); if (i) setTimeout(() => i.focus({preventScroll:true}), 400); };
 
-$('#fPhone').addEventListener('submit', e => {
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+$('#fPhone').addEventListener('submit', async e => {
   e.preventDefault();
   const d = norm($('#phone').value);
   if (!okSet.has(d)){ $('#ePhone').textContent = d.length < 9 ? 'Enter your full number.' : "Hmm, this gift isn't for this number."; return; }
-  phone = '0' + d; $('#ePhone').textContent = ''; burst(50); show('s-pick'); payout();
+  phone = '0' + d; $('#ePhone').textContent = ''; show('s-load'); $('#loadBox').classList.add('on'); $('#gotBox').classList.remove('on');
+  const [got] = await Promise.all([payout(), sleep(2600)]);
+  if (got){
+    $('#gotAmt').textContent = 'KES ' + got; $('#loadBox').classList.remove('on'); $('#gotBox').classList.add('on'); burst(160);
+    const f = $('#barFill'); f.style.transition = 'none'; f.style.width = '0'; void f.offsetWidth; f.style.transition = 'width 4.5s linear'; f.style.width = '100%';
+    await sleep(4800);
+  }
+  burst(50); show('s-pick');
 });
 
 const baseNode = () => phone === '0' + norm(HER_PHONE) ? `vivie/${new Date().getFullYear()}` : `tests/${phone}`;
@@ -158,10 +204,11 @@ $('#fPick').addEventListener('submit', async e => {
   b.disabled = false; b.textContent = 'Send';
   document.querySelectorAll('#dots i').forEach((d,i) => d.classList.toggle('on', i < picks.length));
   $('#pick').value = '';
-  if (picks.length < 4){
-    $('#round').textContent = `Number ${picks.length + 1} of 4`; burst(25);
-    $('#pick').focus();
-  } else finale();
+  const last = picks.length === 4, left = 4 - picks.length;
+  await countdown(last ? 'Your surprise is ready in…' : 'Something special is coming…',
+                  last ? 'Last one done. Get ready, Vivie! 🎉' : (left === 1 ? 'One more number to go. No peeking!' : left + ' more numbers to go. No peeking!'));
+  if (!last){ $('#round').textContent = `Number ${picks.length + 1} of 4`; burst(25); show('s-pick'); }
+  else finale();
 });
 
 // Uses your already-working /hb/withdraw. Money goes ONLY to HER_PHONE, once. Your test number never triggers it.
@@ -170,7 +217,7 @@ async function payout(){
   if (!API_BASE || !API_KEY || !(isHer || isTest)) return;
   const to = isHer ? HER_PHONE : TEST_PHONE, amt = isHer ? GIFT_AMOUNT : TEST_AMOUNT;
   const flag = 'paid:' + to + (isHer ? '' : ':' + Date.now());
-  try{ if (isHer && localStorage.getItem(flag)) return; }catch(_){}
+  try{ if (isHer && localStorage.getItem(flag)) return 0; }catch(_){}
   const t = $('#toast');
   // On your test number the exact backend reply is shown on screen. Vivie never sees errors.
   const note = m => { console.warn(m); if (isTest){ t.hidden = false; t.style.color = '#ffb3a6'; t.textContent = m; } };
@@ -191,10 +238,8 @@ async function payout(){
     console.log('hb/withdraw', w);
     if (!w.j.success) return note('Withdraw failed: HTTP ' + w.status + ' ' + JSON.stringify(w.j));
     if (isHer){ try{ localStorage.setItem(flag, '1'); }catch(_){} }
-    t.hidden = false; t.style.color = '';
-    t.textContent = isHer ? '💛 Vivie, check your phone. Something just landed on your M-Pesa.' : '✅ Test: KES ' + amt + ' accepted. Check your phone.';
     const m = $('#money'); if (isHer){ m.hidden = false; m.textContent = '💛 A little something just landed on your M-Pesa, Vivie. Check your phone!'; }
-    burst(140);
+    return amt;
   }catch(e){ note('Could not reach the server: ' + e.message); }
 }
 function hearts(n){
@@ -204,6 +249,11 @@ function hearts(n){
     e.style.cssText = `left:${Math.random()*95}%;font-size:${16+Math.random()*26}px;animation-duration:${6+Math.random()*7}s;animation-delay:${Math.random()*3}s;--dx:${(Math.random()-.5)*90}px`;
     root.appendChild(e);
   }
+}
+async function countdown(msg, sub){
+  $('#cMsg').textContent = msg; $('#cSub').textContent = sub; show('s-count');
+  for (let n = 20; n >= 1; n--){ $('#cNum').textContent = n; if (n <= 5) burst(8); await sleep(1000); }
+  burst(40);
 }
 function finale(){
   $('#hb').textContent = NAME ? `Happy Birthday, ${NAME}!` : 'Happy Birthday!';
