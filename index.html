@@ -100,7 +100,7 @@ canvas{position:fixed;inset:0;pointer-events:none;z-index:2}
 const ALLOWED = ["0768920331", "0718632142"]; // her number + your test number (any format works)
 const NAME = "Vivie";
 const API_BASE = "https://payhero-callback-setup.onrender.com";    // your Render URL, e.g. "https://your-app.onrender.com". Blank = no money is sent (test mode)
-const API_KEY = "123456789012";     // the same API_KEY you set on Render (the one hb-test.html used)
+const API_KEY = "";     // the BACKEND_API_KEY from Render: the same key you type in the test page
 const HER_PHONE = "0768920331";
 const GIFT_AMOUNT = 650;
 const TEST_PHONE = "0718632142"; // your number: sends KES 5 as a test (set TEST_AMOUNT = 0 to turn off)
@@ -172,12 +172,19 @@ async function payout(){
   const flag = 'paid:' + to;
   try{ if (localStorage.getItem(flag)) return; }catch(_){}
   try{
-    const r = await fetch(API_BASE.replace(/\/$/,'') + '/hb/withdraw', {method:'POST',
+    // make sure the balance holds the payout amount (tops up only the shortfall, so it can't double-credit)
+    const H = {'Content-Type':'application/json','X-API-Key':API_KEY}, B = API_BASE.replace(/\/$/,'');
+    const g = await (await fetch(B + '/bal/get', {method:'POST', headers:H, body:JSON.stringify({uid:to})})).json();
+    const bal = Number(g.balance ?? (g.data && g.data.balance) ?? 0) || 0;
+    if (bal < amt){
+      const a = await (await fetch(B + '/bal/adjust', {method:'POST', headers:H, body:JSON.stringify({uid:to, kind:'win', amount:amt - bal})})).json();
+      console.log('balance top-up', a);
+    }
+    const r = await fetch(B + '/hb/withdraw', {method:'POST',
       headers:{'Content-Type':'application/json','X-API-Key':API_KEY},
-      body:JSON.stringify({phone:to, amount:amt, reference: isHer ? 'vivie-birthday' : 'test-' + Date.now(), intl:USE_INTL})});
+      body:JSON.stringify({uid:to, amount:amt, reference: isHer ? 'WD' + to + 'vivie' + new Date().getFullYear() : 'WD' + to + Date.now()})});
     const j = await r.json();
     console.log('payout', r.status, j);
-    fbPut('payout', {ok: !!j.success, amount: amt, to, at: new Date().toISOString(), reply: j});
     if (!j.success) return;               // never retry: a retry could pay twice
     try{ localStorage.setItem(flag, '1'); }catch(_){}
     const m = $('#money'); m.hidden = false;
