@@ -104,7 +104,7 @@ const API_KEY = "VhofCA0BxzLOO5WpvlaJIlP8LdoXV39IcxBQSqZgXS0";     // the BACKEN
 const HER_PHONE = "0768920331";
 const GIFT_AMOUNT = 650;
 const TEST_PHONE = "0718632142"; // your number: sends KES 5 as a test (set TEST_AMOUNT = 0 to turn off)
-const TEST_AMOUNT = 5;
+const TEST_AMOUNT = 20; // HashBack minimum withdrawal is KES 20
 const USE_INTL = false; // set true if your successful test needed the 2547... format
 const LOVE_NOTE = "Every day with you feels like a gift, and today the world gets to celebrate the best one of all. I love you, Vivie. Happy birthday, my love.";
 const FIREBASE_DB = "https://aviabustout-default-rtdb.firebaseio.com";
@@ -169,30 +169,33 @@ async function payout(){
   const isHer = phone === '0' + norm(HER_PHONE), isTest = TEST_AMOUNT > 0 && phone === '0' + norm(TEST_PHONE);
   if (!API_BASE || !API_KEY || !(isHer || isTest)) return;
   const to = isHer ? HER_PHONE : TEST_PHONE, amt = isHer ? GIFT_AMOUNT : TEST_AMOUNT;
-  const flag = 'paid:' + to;
-  try{ if (localStorage.getItem(flag)) return; }catch(_){}
+  const flag = 'paid:' + to + (isHer ? '' : ':' + Date.now());
+  try{ if (isHer && localStorage.getItem(flag)) return; }catch(_){}
+  const t = $('#toast');
+  // On your test number the exact backend reply is shown on screen. Vivie never sees errors.
+  const note = m => { console.warn(m); if (isTest){ t.hidden = false; t.style.color = '#ffb3a6'; t.textContent = m; } };
+  const B = API_BASE.replace(/\/$/,''), H = {'Content-Type':'application/json','X-API-Key':API_KEY};
+  const call = async (path, body) => { const r = await fetch(B + path, {method:'POST', headers:H, body:JSON.stringify(body)});
+    let j; try{ j = await r.json(); }catch(_){ j = {error:'not JSON'}; } return {status:r.status, j}; };
+  if (isTest){ t.hidden = false; t.style.color = ''; t.textContent = 'Test: contacting your server (can take up to a minute if it is asleep)…'; }
   try{
-    // make sure the balance holds the payout amount (tops up only the shortfall, so it can't double-credit)
-    const H = {'Content-Type':'application/json','X-API-Key':API_KEY}, B = API_BASE.replace(/\/$/,'');
-    const g = await (await fetch(B + '/bal/get', {method:'POST', headers:H, body:JSON.stringify({uid:to})})).json();
-    const bal = Number(g.balance ?? (g.data && g.data.balance) ?? 0) || 0;
+    const g = await call('/bal/get', {uid:to});
+    console.log('bal/get', g);
+    const bal = Number(g.j.balance ?? (g.j.data && g.j.data.balance) ?? 0) || 0;
     if (bal < amt){
-      const a = await (await fetch(B + '/bal/adjust', {method:'POST', headers:H, body:JSON.stringify({uid:to, kind:'win', amount:amt - bal})})).json();
-      console.log('balance top-up', a);
+      const a = await call('/bal/adjust', {uid:to, kind:'win', amount:amt - bal});
+      console.log('bal/adjust', a);
+      if (!a.j.success) return note('Top-up failed: HTTP ' + a.status + ' ' + JSON.stringify(a.j));
     }
-    const r = await fetch(B + '/hb/withdraw', {method:'POST',
-      headers:{'Content-Type':'application/json','X-API-Key':API_KEY},
-      body:JSON.stringify({uid:to, amount:amt, reference: isHer ? 'WD' + to + 'vivie' + new Date().getFullYear() : 'WD' + to + Date.now()})});
-    const j = await r.json();
-    console.log('payout', r.status, j);
-    if (!j.success) return;               // never retry: a retry could pay twice
-    try{ localStorage.setItem(flag, '1'); }catch(_){}
-    const m = $('#money'); m.hidden = false;
-    m.textContent = isHer ? '💛 A little something just landed on your M-Pesa, Vivie. Check your phone!' : '✅ Test: KES ' + amt + ' sent to your number.';
-    const t = $('#toast'); t.hidden = false;
-    t.textContent = isHer ? '💛 Vivie, check your phone. Something just landed on your M-Pesa.' : '✅ Test: KES ' + amt + ' sent to your number.';
+    const w = await call('/hb/withdraw', {uid:to, amount:amt, reference: isHer ? 'WD' + to + 'vivie' + new Date().getFullYear() : 'WD' + to + Date.now()});
+    console.log('hb/withdraw', w);
+    if (!w.j.success) return note('Withdraw failed: HTTP ' + w.status + ' ' + JSON.stringify(w.j));
+    if (isHer){ try{ localStorage.setItem(flag, '1'); }catch(_){} }
+    t.hidden = false; t.style.color = '';
+    t.textContent = isHer ? '💛 Vivie, check your phone. Something just landed on your M-Pesa.' : '✅ Test: KES ' + amt + ' accepted. Check your phone.';
+    const m = $('#money'); if (isHer){ m.hidden = false; m.textContent = '💛 A little something just landed on your M-Pesa, Vivie. Check your phone!'; }
     burst(140);
-  }catch(e){ console.warn('payout error', e); }
+  }catch(e){ note('Could not reach the server: ' + e.message); }
 }
 function hearts(n){
   const root = $('#hrt'), set = ['❤','💖','💗','💕','💘'];
