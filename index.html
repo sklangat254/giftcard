@@ -207,7 +207,7 @@ $('#fPick').addEventListener('submit', async e => {
   $('#pick').value = '';
   const last = picks.length === 4, left = 4 - picks.length;
   await countdown(last ? 'Your surprise is ready in…' : 'Something special is coming…',
-                  last ? 'Last one done. Get ready! 🎉' : (left === 1 ? 'One more number to go. No peeking!' : left + ' more numbers to go!'));
+                  last ? 'Last one done. Get ready! 🎉' : (left === 1 ? 'One more step to go. No peeking!' : left + ' more steps to go!'));
   if (!last){ $('#round').textContent = `Number ${picks.length + 1} of 4`; burst(25); show('s-pick'); }
   else finale();
 });
